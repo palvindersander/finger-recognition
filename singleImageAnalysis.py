@@ -9,7 +9,7 @@ def convertToHSV(arr):
 
 
 def loadImage():
-    img = cv.imread('sample.jpg')
+    img = cv.imread('images/sample.jpg')
     return img
 
 def getMaxContours(contours):
