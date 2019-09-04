@@ -1,6 +1,7 @@
 import cv2 as cv
 import numpy as np
 import math
+from findHSV import main
 
 def convertToHSV(arr):
     BGR = np.uint8([[arr]])
@@ -8,9 +9,10 @@ def convertToHSV(arr):
     return HSV
 
 
-def loadImage():
-    img = cv.imread('images/sample.jpg')
+def loadImage(x):
+    img = cv.imread('images/'+x+'.jpg')
     return img
+
 
 def getMaxContours(contours):
     maxIndex = 0
@@ -23,6 +25,7 @@ def getMaxContours(contours):
             maxIndex = i
     return contours[maxIndex]
 
+
 def calculateAngle(far, start, end):
     a = math.sqrt((end[0] - start[0])**2 + (end[1] - start[1])**2)
     b = math.sqrt((far[0] - start[0])**2 + (far[1] - start[1])**2)
@@ -30,57 +33,66 @@ def calculateAngle(far, start, end):
     angle = math.acos((b**2 + c**2 - a**2) / (2*b*c))
     return angle
 
+
 def findHand():
     while(1):
         fingerNumber = 0
-        img = loadImage()
+        img = loadImage("1")
+        img = cv.medianBlur(img, 5)
         k = cv.waitKey(1)
-        #img = cv.medianBlur(img,5)
-        img = cv.GaussianBlur(img,(5,5),0)
         hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-        maskLower = np.array([0,40,189])
-        maskHigher = np.array([8,108,255])
+        maskLower = np.array([0, 37, 46])
+        maskHigher = np.array([21, 185, 239])
         mask = cv.inRange(hsv, maskLower, maskHigher)
-
-        #for uneven skintone
-        maskUnevenLower = np.array([0,65,70])
-        maskUnevenHigher = np.array([10,200,200])
-        maskUneven = cv.inRange(hsv,maskUnevenLower,maskUnevenHigher)
-
-        maskUnevenLower = np.array([0,65,70])
-        maskUnevenHigher = np.array([10,200,200])
-        maskUneven = cv.inRange(hsv,maskUnevenLower,maskUnevenHigher)
-
-        mask = mask + maskUneven + cv.inRange(hsv,np.array([160,75,75]),np.array([255,255,255]))
-
-        kernel = np.ones((2,2),np.uint8)
-        #mask = cv.dilate(mask,kernel,iterations=1)  
+        kernel = np.ones((2, 2), np.uint8)
+        mask = cv.dilate(mask, kernel, iterations=10)
+        mask = cv.GaussianBlur(mask, (5, 5), 0)
         res = cv.bitwise_and(img, img, mask=mask)
-
-        resGrey = cv.cvtColor(res, cv.COLOR_BGR2GRAY)
-        ret, thresh = cv.threshold(resGrey, 127, 255, 0)
-        contours, hierarchy = cv.findContours(thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        ret, thresh = cv.threshold(mask, 127, 255, 0)
+        contours, hierarchy = cv.findContours(
+            thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         handContour = getMaxContours(contours)
-        cv.drawContours(img, handContour, -1, (0,255,0), 20)
+        cv.drawContours(img, handContour, -1, (0, 255, 0), 20)
         hull = cv.convexHull(handContour, returnPoints=False)
-        defects = cv.convexityDefects(handContour,hull)
+        convexHullPoints = cv.convexHull(
+            handContour, returnPoints=True, clockwise=True)
+        defects = cv.convexityDefects(handContour, hull)
+        allDefects = []
+        fingerDefects = []
         for i in range(defects.shape[0]):
-            s,e,f,d = defects[i,0]
+            s, e, f, d = defects[i, 0]
             start = tuple(handContour[s][0])
             end = tuple(handContour[e][0])
             far = tuple(handContour[f][0])
             angle = calculateAngle(far, start, end)
-            cv.line(img,start,end,[0,0,255],20)
-            if d > 100000 and angle <=(math.pi/9)*8:
-                cv.circle(img,far,25,[255,0,0],-1)
+            allDefects.append(far)
+            cv.line(img, start, end, [0, 0, 255], 20)
+            if d > 100000 and angle <= (math.pi/9)*8:
+                fingerDefects.append(far)
+                cv.circle(img, far, 25, [255, 0, 0], -1)
                 fingerNumber = fingerNumber + 1
-        x,y,w,h = cv.boundingRect(handContour)
-        cv.rectangle(img,(x,y),(x+w,y+h),(255,255,0),10)
+        if fingerNumber > 1:
+            fingerNumber = fingerNumber + 1
+        x, y, w, h = cv.boundingRect(handContour)
+        cv.rectangle(img, (x, y), (x+w, y+h), (255, 255, 0), 10)
         font = cv.FONT_ITALIC
-        fingerNumber = fingerNumber + 1
-        cv.putText(img,str(fingerNumber),(0,300), font, 10,(0,255,255),20,cv.LINE_AA)
-
-        
+        cv.putText(img, str(fingerNumber), (0, 300), font,
+                   10, (0, 255, 255), 20, cv.LINE_AA)
+        moments = cv.moments(thresh)
+        cX = int(moments["m10"] / moments["m00"])
+        cY = int(moments["m01"] / moments["m00"])
+        cv.circle(img, (cX, cY), 25, (255, 255, 255), -1)
+        if fingerNumber == 1:
+            dist = 0
+            p = []
+            for point in convexHullPoints:
+                point = point[0]
+                distance = math.sqrt(
+                    ((point[1] - cY)**2) + ((cX - point[0])**2))
+                if distance > dist:
+                    dist = distance
+                    p = point
+            cv.circle(img, (p[0], p[1]), 25, (255, 255, 255), -1)
         imgSmall = cv.resize(img, (500, 500))
         maskSmall = cv.resize(mask, (500, 500))
         resSmall = cv.resize(res, (500, 500))
@@ -90,6 +102,4 @@ def findHand():
         if k == 27:
             break
     cv.destroyAllWindows()
-
-
 findHand()
