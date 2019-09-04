@@ -3,6 +3,7 @@ import numpy as np
 import math
 from findHSV import main
 
+
 def convertToHSV(arr):
     BGR = np.uint8([[arr]])
     HSV = cv.cvtColor(BGR, cv.COLOR_BGR2HSV)
@@ -37,15 +38,15 @@ def calculateAngle(far, start, end):
 def findHand():
     while(1):
         fingerNumber = 0
-        img = loadImage("1")
+        img = loadImage("video")
         img = cv.medianBlur(img, 5)
         k = cv.waitKey(1)
         hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-        maskLower = np.array([0, 37, 46])
-        maskHigher = np.array([21, 185, 239])
+        maskLower = np.array([0, 86, 65])
+        maskHigher = np.array([65, 215, 231])
         mask = cv.inRange(hsv, maskLower, maskHigher)
         kernel = np.ones((2, 2), np.uint8)
-        mask = cv.dilate(mask, kernel, iterations=10)
+        mask = cv.dilate(mask, kernel, iterations=1)
         mask = cv.GaussianBlur(mask, (5, 5), 0)
         res = cv.bitwise_and(img, img, mask=mask)
         ret, thresh = cv.threshold(mask, 127, 255, 0)
