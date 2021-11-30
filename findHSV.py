@@ -5,7 +5,7 @@ def nothing(x):
     pass
 
 def loadImage(x):
-    img = cv.imread('images/'+x+'.jpg')
+    img = cv.imread('./images/'+x+'.jpg')
     return img
 
 def main(x):
@@ -43,3 +43,4 @@ def main(x):
             break
     cap.release()
     cv.destroyAllWindows()
+main(x="video")

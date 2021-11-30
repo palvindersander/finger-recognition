@@ -1,7 +1,6 @@
 import cv2 as cv
 import numpy as np
 import math
-from findHSV import main
 
 
 def convertToHSV(arr):
@@ -11,7 +10,7 @@ def convertToHSV(arr):
 
 
 def loadImage(x):
-    img = cv.imread('images/'+x+'.jpg')
+    img = cv.imread('./images/'+x+'.jpg')
     return img
 
 
@@ -38,12 +37,12 @@ def calculateAngle(far, start, end):
 def findHand():
     while(1):
         fingerNumber = 0
-        img = loadImage("video")
+        img = loadImage("video2")
         img = cv.medianBlur(img, 5)
         k = cv.waitKey(1)
         hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
-        maskLower = np.array([0, 86, 65])
-        maskHigher = np.array([65, 215, 231])
+        maskLower = np.array([58, 76, 68])
+        maskHigher = np.array([122, 255, 255])
         mask = cv.inRange(hsv, maskLower, maskHigher)
         kernel = np.ones((2, 2), np.uint8)
         mask = cv.dilate(mask, kernel, iterations=1)
@@ -53,7 +52,8 @@ def findHand():
         contours, hierarchy = cv.findContours(
             thresh, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
         handContour = getMaxContours(contours)
-        cv.drawContours(img, handContour, -1, (0, 255, 0), 20)
+        cv.polylines(img, [cv.convexHull(handContour)], True, (0,0,255), 10)
+        #cv.drawContours(img, handContour, -1, (0, 255, 255), 10)
         hull = cv.convexHull(handContour, returnPoints=False)
         convexHullPoints = cv.convexHull(
             handContour, returnPoints=True, clockwise=True)
@@ -67,15 +67,15 @@ def findHand():
             far = tuple(handContour[f][0])
             angle = calculateAngle(far, start, end)
             allDefects.append(far)
-            cv.line(img, start, end, [0, 0, 255], 20)
-            if d > 100000 and angle <= (math.pi/9)*8:
+            #cv.line(img, start, end, [0, 255, 0], 10)
+            if d > 1500 and angle <= (math.pi):
                 fingerDefects.append(far)
-                cv.circle(img, far, 25, [255, 0, 0], -1)
+                cv.circle(img, far, 15, (0, 255, 0), -1)
                 fingerNumber = fingerNumber + 1
         if fingerNumber > 1:
             fingerNumber = fingerNumber + 1
         x, y, w, h = cv.boundingRect(handContour)
-        cv.rectangle(img, (x, y), (x+w, y+h), (255, 255, 0), 10)
+        #cv.rectangle(img, (x, y), (x+w, y+h), (255, 255, 0), 10)
         font = cv.FONT_ITALIC
         cv.putText(img, str(fingerNumber), (0, 300), font,
                    10, (0, 255, 255), 20, cv.LINE_AA)
